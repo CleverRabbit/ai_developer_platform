@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./projects:/app/projects
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=change-me-in-production
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
