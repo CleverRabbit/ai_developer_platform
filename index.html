@@ -1,13 +1,237 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Developer - Lightweight</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+        .card { background-color: #18181b; border: 1px solid #27272a; border-radius: 0.75rem; padding: 1.5rem; }
+        .input { background-color: #27272a; border: 1px solid #3f3f46; border-radius: 0.375rem; padding: 0.5rem 0.75rem; width: 100%; color: white; outline: none; }
+        .input:focus { border-color: #71717a; }
+        .btn { background-color: #fafafa; color: #18181b; font-weight: 600; padding: 0.5rem 1rem; border-radius: 0.375rem; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-secondary { background-color: #27272a; color: #fafafa; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <div id="auth-screen" class="flex-1 flex items-center justify-center p-4">
+        <div class="card w-full max-w-md space-y-6">
+            <div class="text-center">
+                <h1 class="text-2xl font-bold">AI Developer</h1>
+                <p class="text-zinc-400 text-sm mt-1" id="auth-mode-text">Sign in to your workspace</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Username</label>
+                    <input type="text" id="username" class="input" placeholder="admin">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Password</label>
+                    <input type="password" id="password" class="input">
+                </div>
+                <button id="auth-btn" class="btn w-full">Sign In</button>
+                <p class="text-center text-sm text-zinc-400">
+                    <button id="toggle-auth" class="hover:text-white">Don't have an account? Sign up</button>
+                </p>
+            </div>
+        </div>
+    </div>
 
+    <div id="main-screen" class="hidden flex-1 flex">
+        <!-- Sidebar -->
+        <div class="w-64 border-r border-zinc-800 p-6 flex flex-col space-y-4">
+            <h2 class="font-bold text-lg">AI Developer</h2>
+            <nav class="flex-1 space-y-2">
+                <button onclick="showTab('dashboard')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-zinc-800 transition-colors">Dashboard</button>
+                <button onclick="showTab('new')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-zinc-800 transition-colors">New Project</button>
+                <button onclick="showTab('settings')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-zinc-800 transition-colors">Settings</button>
+            </nav>
+            <div class="pt-4 border-t border-zinc-800">
+                <p id="user-display" class="text-sm font-medium mb-2"></p>
+                <button onclick="logout()" class="text-sm text-zinc-400 hover:text-red-400">Sign Out</button>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <main class="flex-1 p-8 overflow-auto">
+            <div id="tab-dashboard" class="tab-content space-y-8">
+                <div>
+                    <h1 class="text-3xl font-bold">Dashboard</h1>
+                    <p class="text-zinc-400">Manage your microservices</p>
+                </div>
+                <div id="projects-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Projects will be loaded here -->
+                </div>
+            </div>
+
+            <div id="tab-new" class="tab-content hidden space-y-8">
+                <div>
+                    <h1 class="text-3xl font-bold">New Project</h1>
+                    <p class="text-zinc-400">Describe your idea</p>
+                </div>
+                <div class="card space-y-4">
+                    <textarea id="prompt" class="input h-32 resize-none" placeholder="e.g. A simple Flask API that returns the current time"></textarea>
+                    <button id="generate-btn" class="btn w-full">Generate & Deploy</button>
+                </div>
+            </div>
+
+            <div id="tab-settings" class="tab-content hidden space-y-8">
+                <div>
+                    <h1 class="text-3xl font-bold">Settings</h1>
+                    <p class="text-zinc-400">System configuration</p>
+                </div>
+                <div class="space-y-6">
+                    <div class="card space-y-4">
+                        <h3 class="font-bold">API Configuration</h3>
+                        <div>
+                            <label class="block text-sm mb-1">Gemini API Key</label>
+                            <div class="flex gap-2">
+                                <input type="password" id="gemini-key" class="input">
+                                <button onclick="saveSetting('gemini_key', 'gemini-key')" class="btn btn-secondary">Save</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm mb-1">Telegram Token</label>
+                            <div class="flex gap-2">
+                                <input type="password" id="tg-token" class="input">
+                                <button onclick="saveSetting('tg_token', 'tg-token')" class="btn btn-secondary">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let authMode = 'login';
+
+        const $ = id => document.getElementById(id);
+
+        $('toggle-auth').onclick = () => {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            $('auth-mode-text').innerText = authMode === 'login' ? 'Sign in to your workspace' : 'Create a new account';
+            $('auth-btn').innerText = authMode === 'login' ? 'Sign In' : 'Sign Up';
+            $('toggle-auth').innerText = authMode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Sign in";
+        };
+
+        $('auth-btn').onclick = async () => {
+            const username = $('username').value;
+            const password = $('password').value;
+            const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+            
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                if (authMode === 'login') {
+                    currentUser = data.user;
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    showMain();
+                } else {
+                    authMode = 'login';
+                    $('toggle-auth').click();
+                    alert('Registration successful! Please sign in.');
+                }
+            } else {
+                alert(data.error);
+            }
+        };
+
+        function showMain() {
+            $('auth-screen').classList.add('hidden');
+            $('main-screen').classList.remove('hidden');
+            $('user-display').innerText = currentUser.username;
+            loadProjects();
+            loadSettings();
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('user');
+            $('auth-screen').classList.remove('hidden');
+            $('main-screen').classList.add('hidden');
+        }
+
+        function showTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            $(`tab-${tab}`).classList.remove('hidden');
+        }
+
+        async function loadProjects() {
+            const res = await fetch('/api/projects');
+            const projects = await res.json();
+            $('projects-list').innerHTML = projects.map(p => `
+                <div class="card flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-bold text-lg">${p.name}</h3>
+                            <span class="px-2 py-1 rounded text-xs ${p.status === 'running' ? 'bg-green-500/10 text-green-500' : 'bg-zinc-800 text-zinc-400'}">${p.status}</span>
+                        </div>
+                        <p class="text-sm text-zinc-500">Port: ${p.port}</p>
+                    </div>
+                    <div class="flex gap-2 mt-6">
+                        <button class="btn btn-secondary flex-1 text-sm">Start</button>
+                        <button class="btn btn-secondary flex-1 text-sm">Stop</button>
+                    </div>
+                </div>
+            `).join('') || '<p class="text-zinc-500 col-span-full text-center py-12">No projects yet.</p>';
+        }
+
+        async function loadSettings() {
+            const res = await fetch('/api/settings');
+            const settings = await res.json();
+            if (settings.gemini_key) $('gemini-key').value = '********';
+            if (settings.tg_token) $('tg-token').value = '********';
+        }
+
+        async function saveSetting(key, inputId) {
+            const value = $(inputId).value;
+            if (value === '********') return;
+            const res = await fetch('/api/settings/save', {
+                method: 'POST',
+                body: JSON.stringify({ key, value })
+            });
+            if (res.ok) alert('Setting saved!');
+        }
+
+        $('generate-btn').onclick = async () => {
+            const prompt = $('prompt').value;
+            if (!prompt) return;
+            $('generate-btn').disabled = true;
+            $('generate-btn').innerText = 'Generating...';
+            
+            const res = await fetch('/api/projects/generate', {
+                method: 'POST',
+                body: JSON.stringify({ prompt })
+            });
+            const data = await res.json();
+            
+            $('generate-btn').disabled = false;
+            $('generate-btn').innerText = 'Generate & Deploy';
+            
+            if (res.ok) {
+                alert('Project generated and deployed!');
+                showTab('dashboard');
+                loadProjects();
+            } else {
+                alert(data.error);
+            }
+        };
+
+        // Init
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            showMain();
+        }
+    </script>
+</body>
+</html>

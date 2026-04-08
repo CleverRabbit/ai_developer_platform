@@ -1,5 +1,5 @@
 {
   "name": "AI Developer",
-  "description": "A lightweight AI-powered development platform with Docker management and Telegram integration.",
+  "description": "A lightweight, pure Python AI-powered development platform with Docker management and Telegram integration. Optimized for low-resource servers.",
   "requestFramePermissions": []
 }

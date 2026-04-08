@@ -1,20 +1,51 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AI Developer - Lightweight Pure Python Edition
 
-# Run and deploy your AI Studio app
+This application is a highly optimized, zero-dependency AI development platform. It uses only Python's built-in libraries to ensure maximum performance and minimum memory footprint (ideal for 1vCPU / 2GB RAM servers).
 
-This contains everything you need to run your app locally.
+## Features
+- **Pure Python**: No Flask, no heavy frameworks.
+- **Zero Dependencies**: Uses only built-in libraries (`http.server`, `sqlite3`, `urllib`, `hashlib`).
+- **Docker Integration**: Manages host containers via CLI.
+- **Telegram Bot**: Built-in long polling bot.
+- **Security**: SHA-256 salted password hashing, login attempt tracking.
 
-View your app in AI Studio: https://ai.studio/apps/450281af-d0e5-473e-902b-feb251510ffe
+## Deployment
+The project is designed to be run via `docker-compose`:
+```bash
+docker-compose up --build -d
+```
 
-## Run Locally
+## Admin Registration & User Management
 
-**Prerequisites:**  Node.js
+### 1. Registering the First Admin
+By default, the registration page creates users with the `user` role. To create the first administrator:
+1. Register a normal account via the web interface (e.g., username `admin`).
+2. Access the SQLite database directly on the server:
+   ```bash
+   sqlite3 data/app.db "UPDATE users SET role = 'admin' WHERE username = 'admin';"
+   ```
+3. Now you can log in as an administrator.
 
+### 2. Granting Rights to Users
+Currently, user management is handled directly via the database for maximum security and minimal code weight.
+- **To promote a user to admin**:
+  ```bash
+  sqlite3 data/app.db "UPDATE users SET role = 'admin' WHERE username = 'target_user';"
+  ```
+- **To deactivate a user**:
+  ```bash
+  sqlite3 data/app.db "DELETE FROM users WHERE username = 'target_user';"
+  ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Self-Testing
+The application performs a self-test on every startup, checking:
+- Database connectivity and schema integrity.
+- File system permissions for `data` and `projects` directories.
+- Telegram bot connectivity (if token is provided).
+
+## Volumes
+All persistent data is stored in mapped volumes:
+- `./data`: SQLite database.
+- `./projects`: Generated project source codes and Dockerfiles.
+- `./logs`: System logs.
+- `./.env`: Environment variables.

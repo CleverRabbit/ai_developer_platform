@@ -1,21 +1,33 @@
 version: '3.8'
+
 services:
   app:
     build: .
+    container_name: ai_developer_app
     volumes:
       - ./data:/app/data
       - ./projects:/app/projects
+      - ./logs:/app/logs
+      - ./.env:/app/.env
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - NODE_ENV=production
-      - JWT_SECRET=change-me-in-production
+      - PYTHONUNBUFFERED=1
     restart: always
+    networks:
+      - ai_net
 
   nginx:
     image: nginx:alpine
+    container_name: ai_developer_proxy
     ports:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - app
+    networks:
+      - ai_net
+
+networks:
+  ai_net:
+    driver: bridge
