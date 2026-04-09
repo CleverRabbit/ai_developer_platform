@@ -37,6 +37,10 @@ Currently, user management is handled directly via the database for maximum secu
   sqlite3 data/app.db "DELETE FROM users WHERE username = 'target_user';"
   ```
 
+## Configuration
+- **Gemini API**: The application automatically uses the `GEMINI_API_KEY` environment variable. No manual setup is required.
+- **Telegram Bot**: Enter your bot token in the Settings tab of the web interface.
+
 ## Self-Testing
 The application performs a self-test on every startup, checking:
 - Database connectivity and schema integrity.

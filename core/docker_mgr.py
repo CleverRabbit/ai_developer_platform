@@ -11,6 +11,8 @@ class DockerManager:
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return res.stdout.strip()
+        except FileNotFoundError:
+            return "Error: Docker binary not found. Please install Docker on the host system."
         except subprocess.CalledProcessError as e:
             return f"Error: {e.stderr.strip()}"
 

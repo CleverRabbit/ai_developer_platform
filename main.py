@@ -46,11 +46,9 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 status = 400
 
         elif path == "/api/projects/generate":
-            api_key = db.fetch_one("SELECT value FROM settings WHERE key = 'gemini_key'")
             sys_prompt = db.fetch_one("SELECT value FROM settings WHERE key = 'system_prompt'")
             
             code = gemini_client.generate(
-                api_key['value'] if api_key else None,
                 data.get("prompt"),
                 sys_prompt['value'] if sys_prompt else None
             )
@@ -68,6 +66,60 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 
                 response = {"success": True, "code": code, "name": name, "port": port}
                 status = 200
+
+        elif path == "/api/diagnostics":
+            results = {}
+            
+            # 1. Database Test
+            try:
+                db.fetch_one("SELECT 1")
+                results["database"] = {"status": "ok"}
+            except Exception as e:
+                results["database"] = {"status": "error", "message": str(e)}
+                
+            # 2. Gemini API Test
+            key_setting = db.fetch_one("SELECT value FROM settings WHERE key = 'gemini_key'")
+            api_key = key_setting['value'] if key_setting and key_setting['value'] else os.environ.get("GEMINI_API_KEY")
+            
+            if not api_key:
+                results["gemini_api"] = {"status": "error", "message": "Key missing in settings and environment"}
+            else:
+                test_res = gemini_client.generate("Say 'ok'", api_key_override=api_key)
+                if "Error" in test_res:
+                    results["gemini_api"] = {"status": "error", "message": test_res}
+                else:
+                    results["gemini_api"] = {"status": "ok", "message": f"Model responded: {test_res[:20]}..."}
+            
+            # 3. Telegram Bot Test
+            tg_token = db.fetch_one("SELECT value FROM settings WHERE key = 'tg_token'")
+            if not tg_token or not tg_token['value']:
+                results["telegram_bot"] = {"status": "error", "message": "Token missing in settings"}
+            else:
+                try:
+                    import urllib.request
+                    url = f"https://api.telegram.org/bot{tg_token['value']}/getMe"
+                    with urllib.request.urlopen(url, timeout=5) as r:
+                        bot_data = json.loads(r.read().decode())
+                        if bot_data.get("ok"):
+                            results["telegram_bot"] = {"status": "ok", "message": f"Bot @{bot_data['result']['username']} is active"}
+                        else:
+                            results["telegram_bot"] = {"status": "error", "message": bot_data.get("description")}
+                except Exception as e:
+                    results["telegram_bot"] = {"status": "error", "message": str(e)}
+            
+            # 4. Docker Test
+            try:
+                import subprocess
+                res = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"], capture_output=True, text=True, timeout=5)
+                if res.returncode == 0:
+                    results["docker"] = {"status": "ok", "message": f"Docker Engine {res.stdout.strip()} detected"}
+                else:
+                    results["docker"] = {"status": "error", "message": "Docker CLI available but daemon unreachable"}
+            except Exception as e:
+                results["docker"] = {"status": "error", "message": str(e)}
+
+            response = results
+            status = 200
 
         elif path == "/api/settings/save":
             db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",

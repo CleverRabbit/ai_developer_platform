@@ -101,6 +101,14 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card space-y-4">
+                        <h3 class="font-bold">System Diagnostics</h3>
+                        <div id="test-results" class="text-sm space-y-2">
+                            <p class="text-gray-500 italic">Run tests to check system health...</p>
+                        </div>
+                        <button onclick="runDiagnostics()" id="diag-btn" class="btn btn-primary w-full">Run Full Self-Test</button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -190,6 +198,37 @@
             const settings = await res.json();
             if (settings.gemini_key) $('gemini-key').value = '********';
             if (settings.tg_token) $('tg-token').value = '********';
+        }
+
+        async function runDiagnostics() {
+            const btn = $('diag-btn');
+            const results = $('test-results');
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            results.innerHTML = '<p class="animate-pulse">Running diagnostics...</p>';
+
+            try {
+                const res = await fetch('/api/diagnostics', { method: 'POST' });
+                const data = await res.json();
+                
+                let html = '';
+                for (const [key, val] of Object.entries(data)) {
+                    const status = val.status === 'ok' ? 'text-green-500' : 'text-red-500';
+                    html += `
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-1">
+                            <span class="capitalize">${key.replace('_', ' ')}:</span>
+                            <span class="font-mono ${status}">${val.status.toUpperCase()}</span>
+                        </div>
+                        ${val.message ? `<p class="text-xs text-gray-400 mb-2">${val.message}</p>` : ''}
+                    `;
+                }
+                results.innerHTML = html;
+            } catch (e) {
+                results.innerHTML = `<p class="text-red-500">Error running tests: ${e.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Full Self-Test';
+            }
         }
 
         async function saveSetting(key, inputId) {
